@@ -1,0 +1,24 @@
+name: star_studio
+description: >
+  Star Studio - a film-production management mini-game. This package
+  contains the minimal 2D scaffold (economy, buildings, gigs) plus the
+  Tier 1 "juice" feedback layer (reward payouts, like bursts, celebrations).
+publish_to: "none"
+version: 0.1.0
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+  flutter: ">=3.19.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true

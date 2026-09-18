@@ -1,0 +1,187 @@
+import '../models/building.dart';
+import '../models/gig.dart';
+
+/// Single source of truth for building and gig rules (design doc §4.3,
+/// §7 — "a generated data contract feeds Unity so it never becomes a
+/// third source of truth"). Server-side mirrors of these rules must stay
+/// in sync; this client copy should never diverge silently.
+class GameRegistry {
+  GameRegistry._();
+
+  static const List<BuildingDef> buildings = [
+    BuildingDef(
+      id: 'producers_office',
+      name: "Producer's Office",
+      unlockLevel: 1,
+      buildCost: 0,
+      buildTime: Duration.zero,
+    ),
+    BuildingDef(
+      id: 'shoot_floor',
+      name: 'Shoot Floor',
+      unlockLevel: 1,
+      buildCost: 200,
+      buildTime: Duration(minutes: 2),
+    ),
+    BuildingDef(
+      id: 'editing_bay',
+      name: 'Editing Bay',
+      unlockLevel: 3,
+      buildCost: 500,
+      buildTime: Duration(minutes: 5),
+    ),
+    BuildingDef(
+      id: 'music_room',
+      name: 'Music Room',
+      unlockLevel: 5,
+      buildCost: 900,
+      buildTime: Duration(minutes: 10),
+    ),
+    BuildingDef(
+      id: 'cast_suite',
+      name: 'Cast Suite',
+      unlockLevel: 7,
+      buildCost: 1400,
+      buildTime: Duration(minutes: 15),
+    ),
+    BuildingDef(
+      id: 'costume_room',
+      name: 'Costume Room',
+      unlockLevel: 9,
+      buildCost: 2000,
+      buildTime: Duration(minutes: 20),
+    ),
+    BuildingDef(
+      id: 'marketing_wing',
+      name: 'Marketing Wing',
+      unlockLevel: 12,
+      buildCost: 3000,
+      buildTime: Duration(minutes: 30),
+    ),
+    BuildingDef(
+      id: 'mini_theatre',
+      name: 'Mini Theatre',
+      unlockLevel: 15,
+      buildCost: 5000,
+      buildTime: Duration(minutes: 45),
+    ),
+  ];
+
+  static const List<GigDef> gigs = [
+    GigDef(
+      id: 'tagline',
+      name: 'Tagline',
+      type: 'writing',
+      charLimit: 60,
+      likeTarget: 20,
+      timer: Duration(seconds: 20),
+      cost: 0,
+      requiredLevel: 1,
+      rewardBoxOffice: 50,
+      rewardFans: 5,
+      rewardXp: 20,
+    ),
+    GigDef(
+      id: 'print_ad',
+      name: 'Print Ad',
+      type: 'writing',
+      charLimit: 120,
+      likeTarget: 40,
+      timer: Duration(seconds: 30),
+      cost: 20,
+      requiredLevel: 1,
+      rewardBoxOffice: 90,
+      rewardFans: 10,
+      rewardXp: 35,
+    ),
+    GigDef(
+      id: 'jingle',
+      name: 'Jingle',
+      type: 'writing',
+      charLimit: 150,
+      likeTarget: 60,
+      timer: Duration(seconds: 40),
+      cost: 40,
+      requiredLevel: 3,
+      requiredBuildingId: 'music_room',
+      rewardBoxOffice: 150,
+      rewardFans: 20,
+      rewardXp: 60,
+    ),
+    GigDef(
+      id: 'short_film',
+      name: 'Short Film',
+      type: 'writing',
+      charLimit: 300,
+      likeTarget: 100,
+      timer: Duration(minutes: 1),
+      cost: 80,
+      requiredLevel: 5,
+      requiredBuildingId: 'shoot_floor',
+      rewardBoxOffice: 260,
+      rewardFans: 35,
+      rewardXp: 110,
+    ),
+    GigDef(
+      id: 'music_video',
+      name: 'Music Video',
+      type: 'writing',
+      charLimit: 300,
+      likeTarget: 150,
+      timer: Duration(minutes: 2),
+      cost: 150,
+      requiredLevel: 7,
+      requiredBuildingId: 'music_room',
+      rewardBoxOffice: 420,
+      rewardFans: 60,
+      rewardXp: 180,
+    ),
+    GigDef(
+      id: 'web_series',
+      name: 'Web Series',
+      type: 'writing',
+      charLimit: 500,
+      likeTarget: 220,
+      timer: Duration(minutes: 3),
+      cost: 260,
+      requiredLevel: 9,
+      requiredBuildingId: 'editing_bay',
+      rewardBoxOffice: 650,
+      rewardFans: 95,
+      rewardXp: 260,
+    ),
+    GigDef(
+      id: 'feature_film',
+      name: 'Feature Film',
+      type: 'writing',
+      charLimit: 800,
+      likeTarget: 320,
+      timer: Duration(minutes: 5),
+      cost: 450,
+      requiredLevel: 12,
+      requiredBuildingId: 'cast_suite',
+      rewardBoxOffice: 1100,
+      rewardFans: 160,
+      rewardXp: 420,
+    ),
+    GigDef(
+      id: 'blockbuster',
+      name: 'Blockbuster',
+      type: 'writing',
+      charLimit: 1200,
+      likeTarget: 500,
+      timer: Duration(minutes: 8),
+      cost: 800,
+      requiredLevel: 15,
+      requiredBuildingId: 'marketing_wing',
+      rewardBoxOffice: 2000,
+      rewardFans: 300,
+      rewardXp: 800,
+    ),
+  ];
+
+  static BuildingDef buildingById(String id) =>
+      buildings.firstWhere((b) => b.id == id);
+
+  static GigDef gigById(String id) => gigs.firstWhere((g) => g.id == id);
+}
