@@ -20,6 +20,7 @@ class BuildingDef {
   final int buildCost;
   final Duration buildTime;
   final int maxUpgradeLevel;
+  final int staffSlots;
 
   const BuildingDef({
     required this.id,
@@ -28,6 +29,7 @@ class BuildingDef {
     required this.buildCost,
     required this.buildTime,
     this.maxUpgradeLevel = 3,
+    this.staffSlots = 2,
   });
 }
 

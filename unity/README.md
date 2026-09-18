@@ -93,10 +93,10 @@ To wire it up:
 
 What it does today: Flutter calls `SyncBuildings`/`SetSkinTone`/
 `SetOutfitColor`/`SetAccessory` on Unity; Unity sends
-`buildingInteracted`/`menuAction` events back. "Hire" and "shop" land on
-`ScaffoldMessenger` placeholders in Flutter, since there's no real
-hiring/shop system in `lib/state/game_state.dart` yet -- only gigs and
-buildings exist there so far.
+`buildingInteracted`/`menuAction` events back. "Hire" and "shop" open
+Flutter's real `BuildingDetailSheet` (staff hiring + building upgrades,
+`lib/state/game_state.dart`) for whichever building's menu is open in
+Unity -- the same sheet a 2D-lot tap on an operational building opens.
 
 ## What's intentionally not here yet
 

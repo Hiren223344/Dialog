@@ -11,6 +11,7 @@ import '../services/unity_bridge.dart';
 import '../state/game_events.dart';
 import '../state/game_state.dart';
 import '../theme/studio_theme.dart';
+import '../widgets/building_detail_sheet.dart';
 import '../widgets/celebration_overlay.dart';
 import '../widgets/flying_reward.dart';
 import '../widgets/gig_board_sheet.dart';
@@ -97,6 +98,14 @@ class _StudioHomeScreenState extends State<StudioHomeScreen> {
           title: '${def.name} complete!',
           subtitle: 'Your studio just got bigger.',
         ));
+      case StaffHiredEvent():
+        StudioSfx.play(SfxCue.coinDrop);
+      case BuildingUpgradedEvent(def: final def, newLevel: final newLevel):
+        juice.celebrate(CelebrationData(
+          kind: CelebrationKind.buildingComplete,
+          title: '${def.name} upgraded!',
+          subtitle: 'Now level $newLevel.',
+        ));
       case LevelUpEvent(newLevel: final level, newRank: final rank, rankChanged: final rankChanged):
         juice.celebrate(CelebrationData(
           kind: CelebrationKind.levelUp,
@@ -154,28 +163,33 @@ class _StudioHomeScreenState extends State<StudioHomeScreen> {
     if (state.status == BuildingStatus.buildable) {
       StudioSfx.play(SfxCue.tap);
       _game.startBuild(buildingId);
+    } else if (state.status.isOperational) {
+      _openBuildingDetail(buildingId);
     }
   }
 
+  void _openBuildingDetail(String buildingId) {
+    StudioSfx.play(SfxCue.tap);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => BuildingDetailSheet(game: _game, buildingId: buildingId),
+    );
+  }
+
   /// Mirrors unity/Assets/Scripts/FlutterBridge.cs's event shapes --
-  /// "interacted" reuses the same start-build path a 2D tap would, and
-  /// "menuAction" opens the same overlays the 2D lot's FAB/menu do
-  /// (hire/shop don't exist as real systems yet, so those show a
-  /// placeholder for now rather than pretend otherwise).
+  /// "interacted" reuses the same start-build/open-detail path a 2D tap
+  /// would, and "menuAction" opens the same overlays the 2D lot's
+  /// FAB/building tap do.
   void _handleUnityEvent(UnityBridgeEvent event) {
     switch (event) {
       case UnityBuildingInteractedEvent(buildingId: final id):
         _onBuildingTap(id);
       case UnityMenuActionEvent(action: 'gigs'):
         _openGigBoard();
-      case UnityMenuActionEvent(action: 'hire'):
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Hiring is coming soon.')),
-        );
-      case UnityMenuActionEvent(action: 'shop'):
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('The shop is coming soon.')),
-        );
+      case UnityMenuActionEvent(action: 'hire' || 'shop', buildingId: final id):
+        _openBuildingDetail(id);
       case UnityMenuActionEvent():
         break;
     }

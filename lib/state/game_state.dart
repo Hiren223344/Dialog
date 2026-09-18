@@ -6,6 +6,7 @@ import '../models/active_gig_session.dart';
 import '../models/building.dart';
 import '../models/gig.dart';
 import '../models/resources.dart';
+import '../models/staff.dart';
 import 'game_events.dart';
 
 /// Owns the economy, buildings, and gig loop (design doc §4). Deliberately
@@ -20,6 +21,7 @@ import 'game_events.dart';
 class GameState {
   GameResources resources = const GameResources();
   final Map<String, BuildingState> buildings = {};
+  final List<StaffMember> staff = [];
   ActiveGigSession? activeGig;
 
   void Function(GameEvent event)? onEvent;
@@ -27,6 +29,12 @@ class GameState {
 
   Timer? _ticker;
   final Random _random = Random();
+  int _nextStaffId = 0;
+
+  /// Real-time salary tick, compressed to 60s like the gig timers are
+  /// (a real "per hour" cadence would make hiring untestable in a demo).
+  static const _salaryInterval = Duration(seconds: 60);
+  DateTime _lastSalaryTick = DateTime.now();
 
   GameState() {
     for (final def in GameRegistry.buildings) {
@@ -88,6 +96,58 @@ class GameState {
     _notify();
   }
 
+  int hiredCountAt(String buildingId) => staff.where((s) => s.buildingId == buildingId).length;
+
+  bool canHireStaff(String buildingId, StaffTier tier) {
+    final state = buildings[buildingId];
+    if (state == null || !state.status.isOperational) return false;
+    if (hiredCountAt(buildingId) >= state.def.staffSlots) return false;
+    return resources.boxOffice >= tier.hireCost;
+  }
+
+  void hireStaff(String buildingId, StaffTier tier) {
+    if (!canHireStaff(buildingId, tier)) return;
+    resources = resources.copyWith(boxOffice: resources.boxOffice - tier.hireCost);
+    staff.add(StaffMember(
+      id: 'staff_${_nextStaffId++}',
+      tier: tier,
+      buildingId: buildingId,
+      hiredAt: DateTime.now(),
+    ));
+    _emit(StaffHiredEvent(buildingId: buildingId, tier: tier));
+    _notify();
+  }
+
+  void fireStaff(String staffId) {
+    final countBefore = staff.length;
+    staff.removeWhere((s) => s.id == staffId);
+    if (staff.length != countBefore) _notify();
+  }
+
+  /// Escalating with upgrade level, and with a flat floor added before
+  /// scaling -- buildCost alone degenerates to a permanently free
+  /// upgrade for Producer's Office, whose buildCost is 0.
+  int upgradeCost(BuildingState state) => (state.def.buildCost + 150) * (state.upgradeLevel + 1);
+
+  bool canUpgrade(String buildingId) {
+    final state = buildings[buildingId];
+    if (state == null) return false;
+    if (!state.status.isOperational) return false;
+    if (state.upgradeLevel >= state.def.maxUpgradeLevel) return false;
+    return resources.boxOffice >= upgradeCost(state);
+  }
+
+  void upgradeBuilding(String buildingId) {
+    final state = buildings[buildingId];
+    if (state == null || !canUpgrade(buildingId)) return;
+    resources = resources.copyWith(boxOffice: resources.boxOffice - upgradeCost(state));
+    buildings[buildingId] = state.copyWith(
+      status: BuildingStatus.upgrading,
+      jobEndsAt: DateTime.now().add(state.def.buildTime),
+    );
+    _notify();
+  }
+
   void _tick() {
     var changed = false;
 
@@ -103,16 +163,49 @@ class GameState {
     final now = DateTime.now();
     for (final entry in buildings.entries.toList()) {
       final state = entry.value;
-      if (state.status == BuildingStatus.building && state.jobEndsAt != null) {
-        if (!now.isBefore(state.jobEndsAt!)) {
-          buildings[entry.key] = state.copyWith(status: BuildingStatus.idle, clearJob: true);
-          _emit(BuildingCompletedEvent(state.def));
-          changed = true;
-        }
+      if (state.jobEndsAt == null || now.isBefore(state.jobEndsAt!)) continue;
+
+      if (state.status == BuildingStatus.building) {
+        buildings[entry.key] = state.copyWith(status: BuildingStatus.idle, clearJob: true);
+        _emit(BuildingCompletedEvent(state.def));
+        changed = true;
+      } else if (state.status == BuildingStatus.upgrading) {
+        final newLevel = state.upgradeLevel + 1;
+        buildings[entry.key] =
+            state.copyWith(status: BuildingStatus.idle, upgradeLevel: newLevel, clearJob: true);
+        _emit(BuildingUpgradedEvent(def: state.def, newLevel: newLevel));
+        changed = true;
+      }
+    }
+
+    if (staff.isNotEmpty && now.difference(_lastSalaryTick) >= _salaryInterval) {
+      _lastSalaryTick = now;
+      final totalSalary = staff.fold<int>(0, (sum, member) => sum + member.tier.hourlyCost);
+      if (totalSalary > 0) {
+        resources = resources.copyWith(
+          boxOffice: max(0, resources.boxOffice - totalSalary),
+        );
+        changed = true;
       }
     }
 
     if (changed) _notify();
+  }
+
+  /// Staff efficiency and building upgrades stack additively into a
+  /// bonus applied on top of the likes-driven quality multiplier
+  /// (design doc improvement notes: staff should be "a decision, not
+  /// just a slider" and buildings should have visible payoff beyond
+  /// looking bigger). Gigs with no required building (e.g. Tagline) get
+  /// no bonus, same as before this system existed.
+  double _productionBonusFor(String? buildingId) {
+    if (buildingId == null) return 0;
+    final state = buildings[buildingId];
+    var bonus = state == null ? 0.0 : state.upgradeLevel * 0.15;
+    for (final member in staff.where((s) => s.buildingId == buildingId)) {
+      bonus += member.tier.efficiencyBonus;
+    }
+    return bonus;
   }
 
   void _advanceLikes(ActiveGigSession gig) {
@@ -130,12 +223,13 @@ class GameState {
   }
 
   void _resolveGig(ActiveGigSession gig) {
-    final multiplier = qualityMultiplierForLikes(gig.likes, gig.def.likeTarget);
+    final qualityMultiplier = qualityMultiplierForLikes(gig.likes, gig.def.likeTarget);
+    final productionBonus = _productionBonusFor(gig.def.requiredBuildingId);
     final result = GigResult(
       def: gig.def,
       text: gig.text,
       likes: gig.likes,
-      qualityMultiplier: multiplier,
+      qualityMultiplier: qualityMultiplier * (1 + productionBonus),
     );
 
     final beforeRank = resources.rank;

@@ -76,7 +76,7 @@ class StudioLotScene extends StatelessWidget {
       left: spot.x,
       top: top,
       child: GestureDetector(
-        onTap: state.status == BuildingStatus.buildable
+        onTap: (state.status == BuildingStatus.buildable || state.status.isOperational)
             ? () => onTapBuilding(spot.buildingId)
             : null,
         child: Column(

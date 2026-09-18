@@ -1,6 +1,7 @@
 import '../models/building.dart';
 import '../models/gig.dart';
 import '../models/rank.dart';
+import '../models/staff.dart';
 
 /// Notable things [GameState] does that deserve a visible reaction. The
 /// state layer stays UI-agnostic: it reports *what* happened, and the
@@ -39,4 +40,16 @@ class LevelUpEvent extends GameEvent {
   final Rank newRank;
   final bool rankChanged;
   const LevelUpEvent({required this.newLevel, required this.newRank, required this.rankChanged});
+}
+
+class StaffHiredEvent extends GameEvent {
+  final String buildingId;
+  final StaffTier tier;
+  const StaffHiredEvent({required this.buildingId, required this.tier});
+}
+
+class BuildingUpgradedEvent extends GameEvent {
+  final BuildingDef def;
+  final int newLevel;
+  const BuildingUpgradedEvent({required this.def, required this.newLevel});
 }
