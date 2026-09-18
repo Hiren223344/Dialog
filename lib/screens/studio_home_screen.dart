@@ -9,7 +9,6 @@ import '../services/studio_sfx.dart';
 import '../state/game_events.dart';
 import '../state/game_state.dart';
 import '../theme/studio_theme.dart';
-import '../widgets/building_tile.dart';
 import '../widgets/celebration_overlay.dart';
 import '../widgets/flying_reward.dart';
 import '../widgets/gig_board_sheet.dart';
@@ -17,6 +16,7 @@ import '../widgets/gig_writer_sheet.dart';
 import '../widgets/hud_bar.dart';
 import '../widgets/juice_overlay_host.dart';
 import '../widgets/rolling_counter.dart';
+import '../widgets/studio_lot_scene.dart';
 
 /// The Studio tab (design doc §4): buildings you can tap into overlay
 /// panels, a gig contract board, and the persistent HUD, all wired to the
@@ -125,10 +125,7 @@ class _StudioHomeScreenState extends State<StudioHomeScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: StudioColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (context) => GigWriterSheet(
         def: def,
         onPost: (text) => _game.startGig(def, text),
@@ -166,23 +163,12 @@ class _StudioHomeScreenState extends State<StudioHomeScreen> {
                 children: [
                   if (activeGig != null) _activeGigBanner(activeGig),
                   Expanded(
-                    child: GridView.builder(
-                      padding: const EdgeInsets.all(16),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        mainAxisSpacing: 12,
-                        crossAxisSpacing: 12,
-                        childAspectRatio: 1.15,
+                    child: Center(
+                      child: StudioLotScene(
+                        buildings: _game.buildings,
+                        inProductionBuildingId: activeGig?.def.requiredBuildingId,
+                        onTapBuilding: _onBuildingTap,
                       ),
-                      itemCount: GameRegistry.buildings.length,
-                      itemBuilder: (context, index) {
-                        final def = GameRegistry.buildings[index];
-                        final state = _game.buildings[def.id]!;
-                        return BuildingTile(
-                          state: state,
-                          onTap: () => _onBuildingTap(def.id),
-                        );
-                      },
                     ),
                   ),
                 ],
