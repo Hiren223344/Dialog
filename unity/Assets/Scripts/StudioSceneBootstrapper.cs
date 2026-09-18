@@ -20,6 +20,9 @@ namespace StarStudio
             Transform character = BuildCharacter();
             BuildCameraRig(character);
             BuildAllBuildings();
+
+            var ui = gameObject.AddComponent<StudioUIBootstrapper>();
+            ui.Initialize(character.GetComponent<CharacterCustomization>());
         }
 
         private void BuildGround()

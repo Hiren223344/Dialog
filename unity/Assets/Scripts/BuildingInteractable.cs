@@ -17,9 +17,12 @@ namespace StarStudio
         public string displayName;
         public KeyCode interactKey = KeyCode.E;
 
-        public static event System.Action<string> BuildingEntered;
+        /// (buildingId, displayName) -- the display name rides along so
+        /// UI code (StudioUIBootstrapper) doesn't need its own lookup
+        /// table just to show "Press E to enter <name>".
+        public static event System.Action<string, string> BuildingEntered;
         public static event System.Action<string> BuildingExited;
-        public static event System.Action<string> BuildingInteracted;
+        public static event System.Action<string, string> BuildingInteracted;
 
         private bool _playerInRange;
 
@@ -32,7 +35,7 @@ namespace StarStudio
         {
             if (!other.CompareTag("Player")) return;
             _playerInRange = true;
-            BuildingEntered?.Invoke(buildingId);
+            BuildingEntered?.Invoke(buildingId, displayName);
             Debug.Log($"[StarStudio] In range of {displayName} ({buildingId}) -- press {interactKey} to enter.");
         }
 
@@ -47,7 +50,7 @@ namespace StarStudio
         {
             if (_playerInRange && Input.GetKeyDown(interactKey))
             {
-                BuildingInteracted?.Invoke(buildingId);
+                BuildingInteracted?.Invoke(buildingId, displayName);
                 Debug.Log($"[StarStudio] Interacted with {displayName} ({buildingId})");
             }
         }

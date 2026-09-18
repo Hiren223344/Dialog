@@ -29,8 +29,10 @@ buildings -- so there's nothing scene-specific that can be malformed.
    Create Empty`), name it e.g. `Bootstrapper`, and attach
    `StudioSceneBootstrapper`.
 4. Press Play. You should get: a ground plane, a capsule character at
-   the origin area, a third-person camera behind it, and 8 colored cube
-   "buildings" laid out in a grid.
+   the origin area, a third-person camera behind it, 8 colored cube
+   "buildings" laid out in a grid, and two UI panels (top-left
+   "Customize" swatches; a hidden building menu that appears on
+   interact).
 
 ## Controls (desktop, for testing in the Editor)
 
@@ -38,8 +40,13 @@ buildings -- so there's nothing scene-specific that can be malformed.
 - **Left/right mouse drag** -- nudge the camera within its clamped
   3/4-angle band (design doc §5.1: no free-orbit, it springs back).
 - **Mouse wheel** -- zoom, also clamped.
-- **E**, when near a building -- "interact" (currently just logs to the
-  Console; see below).
+- **Top-left panel** -- click a skin-tone or outfit swatch to recolor
+  the capsule live; "Cycle Accessory" adds/removes a small placeholder
+  shape at its head.
+- Walk up to a building until a **"Press E to enter ..."** prompt
+  appears, then press **E** -- opens a menu with Gigs / Hire Staff /
+  Shop / Leave. The first three just show a status line (they need the
+  Flutter bridge, not built yet); Leave closes the menu.
 
 ## What's here
 
@@ -51,21 +58,24 @@ buildings -- so there's nothing scene-specific that can be malformed.
 | `BuildingInteractable.cs` | Per-building trigger zone; fires enter/exit/interact events. |
 | `CharacterCustomization.cs` | Placeholder skin/outfit/accessory hooks on the capsule. |
 | `StudioBuildingData.cs` | The 8 buildings' placeholder layout -- mirrors `lib/data/game_registry.dart`'s ids so both sides agree on what a building *is*, even though this data isn't shared code (no Dart/C# interop). |
+| `StudioUIBootstrapper.cs` | Builds the on-screen UI at runtime: interaction prompt, building menu, customization panel. |
 
 ## What's intentionally not here yet
 
 - **Flutter embedding.** No `flutter_unity_widget` (or similar) wiring.
-  `BuildingInteractable`'s events currently just `Debug.Log`; once an
-  embedding package is chosen, a bridge script subscribes to those same
-  events (`BuildingEntered` / `BuildingExited` / `BuildingInteracted`)
-  and forwards them to Flutter instead of (or alongside) logging, and
-  `CharacterCustomization`'s public methods get called from Flutter's
-  customization UI.
+  `BuildingInteractable`'s events currently drive the in-Unity UI and
+  `Debug.Log`; once an embedding package is chosen, a bridge script
+  subscribes to those same events (`BuildingEntered` / `BuildingExited`
+  / `BuildingInteracted`) and forwards them to Flutter too, and the
+  Gigs/Hire/Shop buttons call into the real economy in
+  `lib/state/game_state.dart` instead of showing a placeholder status
+  line.
 - **Real character/building assets.** `CharacterCustomization`'s method
   *signatures* (`SetSkinTone`, `SetOutfitColor`, `SetAccessory`) are
   meant to be the lasting API -- swap their bodies to change materials
   on a real rig / equip real clothing meshes instead of tinting
-  primitives, without changing anything that calls them.
-- **Touch input** for the camera drag/zoom (only mouse is handled right
-  now) and any animation (the capsule doesn't have a walk cycle -- it
-  just translates).
+  primitives, without changing anything that calls them (including the
+  UI buttons in `StudioUIBootstrapper`).
+- **Touch input** for the camera drag/zoom and UI (only mouse is
+  handled right now) and any animation (the capsule doesn't have a walk
+  cycle -- it just translates).
