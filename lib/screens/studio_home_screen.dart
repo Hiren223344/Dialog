@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../config/feature_flags.dart';
 import '../data/game_registry.dart';
 import '../models/active_gig_session.dart';
 import '../models/building.dart';
 import '../models/gig.dart';
 import '../models/rank.dart';
 import '../services/studio_sfx.dart';
+import '../services/unity_bridge.dart';
 import '../state/game_events.dart';
 import '../state/game_state.dart';
 import '../theme/studio_theme.dart';
@@ -17,6 +19,7 @@ import '../widgets/hud_bar.dart';
 import '../widgets/juice_overlay_host.dart';
 import '../widgets/rolling_counter.dart';
 import '../widgets/studio_lot_scene.dart';
+import '../widgets/unity_studio_view.dart';
 
 /// The Studio tab (design doc §4): buildings you can tap into overlay
 /// panels, a gig contract board, and the persistent HUD, all wired to the
@@ -37,12 +40,25 @@ class _StudioHomeScreenState extends State<StudioHomeScreen> {
   final _xpKey = GlobalKey();
   final _activeGigBannerKey = GlobalKey();
 
+  // Only allocated when the (untested, opt-in) Unity path is enabled --
+  // see lib/config/feature_flags.dart.
+  final UnityBridge? _unityBridge = kUnity3DStudioEnabled ? UnityBridge() : null;
+
   @override
   void initState() {
     super.initState();
     _game = GameState();
-    _game.onChanged = () => setState(() {});
+    _game.onChanged = _onGameChanged;
     _game.onEvent = _handleGameEvent;
+  }
+
+  void _onGameChanged() {
+    setState(() {});
+    if (_unityBridge != null && _unityBridge.isReady) {
+      _unityBridge.syncBuildings({
+        for (final entry in _game.buildings.entries) entry.key: entry.value.status.name,
+      });
+    }
   }
 
   @override
@@ -141,6 +157,30 @@ class _StudioHomeScreenState extends State<StudioHomeScreen> {
     }
   }
 
+  /// Mirrors unity/Assets/Scripts/FlutterBridge.cs's event shapes --
+  /// "interacted" reuses the same start-build path a 2D tap would, and
+  /// "menuAction" opens the same overlays the 2D lot's FAB/menu do
+  /// (hire/shop don't exist as real systems yet, so those show a
+  /// placeholder for now rather than pretend otherwise).
+  void _handleUnityEvent(UnityBridgeEvent event) {
+    switch (event) {
+      case UnityBuildingInteractedEvent(buildingId: final id):
+        _onBuildingTap(id);
+      case UnityMenuActionEvent(action: 'gigs'):
+        _openGigBoard();
+      case UnityMenuActionEvent(action: 'hire'):
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Hiring is coming soon.')),
+        );
+      case UnityMenuActionEvent(action: 'shop'):
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('The shop is coming soon.')),
+        );
+      case UnityMenuActionEvent():
+        break;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final resources = _game.resources;
@@ -163,13 +203,15 @@ class _StudioHomeScreenState extends State<StudioHomeScreen> {
                 children: [
                   if (activeGig != null) _activeGigBanner(activeGig),
                   Expanded(
-                    child: Center(
-                      child: StudioLotScene(
-                        buildings: _game.buildings,
-                        inProductionBuildingId: activeGig?.def.requiredBuildingId,
-                        onTapBuilding: _onBuildingTap,
-                      ),
-                    ),
+                    child: kUnity3DStudioEnabled
+                        ? UnityStudioView(bridge: _unityBridge!, onEvent: _handleUnityEvent)
+                        : Center(
+                            child: StudioLotScene(
+                              buildings: _game.buildings,
+                              inProductionBuildingId: activeGig?.def.requiredBuildingId,
+                              onTapBuilding: _onBuildingTap,
+                            ),
+                          ),
                   ),
                 ],
               ),

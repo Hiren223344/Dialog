@@ -43,6 +43,7 @@ namespace StarStudio
         private GameObject _menuPanel;
         private Text _menuTitle;
         private Text _statusText;
+        private string _currentBuildingId;
 
         public void Initialize(CharacterCustomization customization)
         {
@@ -204,15 +205,15 @@ namespace StarStudio
 
             CreateButton(rect, "GigsButton", new Vector2(0f, 90f), new Vector2(320f, 46f),
                 new Color(1f, 0.78f, 0.34f), "Gigs",
-                () => ShowStatus("Gigs board needs the Flutter bridge -- not wired up yet."));
+                () => SendMenuAction("gigs"));
 
             CreateButton(rect, "HireButton", new Vector2(0f, 30f), new Vector2(320f, 46f),
                 new Color(0.31f, 0.80f, 0.77f), "Hire Staff",
-                () => ShowStatus("Hiring needs the Flutter bridge -- not wired up yet."));
+                () => SendMenuAction("hire"));
 
             CreateButton(rect, "ShopButton", new Vector2(0f, -30f), new Vector2(320f, 46f),
                 new Color(1f, 0.42f, 0.42f), "Shop",
-                () => ShowStatus("Shop needs the Flutter bridge -- not wired up yet."));
+                () => SendMenuAction("shop"));
 
             CreateButton(rect, "LeaveButton", new Vector2(0f, -90f), new Vector2(320f, 46f),
                 new Color(0.35f, 0.32f, 0.28f), "Leave",
@@ -288,6 +289,26 @@ namespace StarStudio
             Debug.Log($"[StarStudio] {message}");
         }
 
+        /// Forwards a Gigs/Hire/Shop click for whichever building's menu
+        /// is currently open to FlutterBridge, if one exists in the
+        /// scene (only true once the Flutter bridge has been wired up --
+        /// see unity/README.md). Either way, shows a status line so
+        /// testing this menu standalone in the Editor still gives
+        /// visible feedback.
+        private void SendMenuAction(string action)
+        {
+#if STAR_STUDIO_FLUTTER_BRIDGE
+            var bridge = FindObjectOfType<FlutterBridge>();
+            if (bridge != null)
+            {
+                bridge.SendMenuAction(_currentBuildingId, action);
+                ShowStatus($"Sent \"{action}\" to Flutter for {_menuTitle?.text}.");
+                return;
+            }
+#endif
+            ShowStatus($"\"{action}\" needs the Flutter bridge -- not wired up yet.");
+        }
+
         private void OnBuildingEntered(string id, string displayName)
         {
             if (_promptText != null)
@@ -304,6 +325,7 @@ namespace StarStudio
 
         private void OnBuildingInteracted(string id, string displayName)
         {
+            _currentBuildingId = id;
             _promptRoot?.SetActive(false);
             if (_menuTitle != null)
             {

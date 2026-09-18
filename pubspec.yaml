@@ -14,6 +14,12 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.6
+  # Embeds the Unity 3D studio scene (unity/) inside Flutter -- only
+  # exercised when kUnity3DStudioEnabled is true (see
+  # lib/config/feature_flags.dart). This is the Unity-6 line; switch to
+  # ^2022.3.0 if your Unity project targets 2019.4-2022.3 instead. See
+  # unity/README.md, "Wiring the Flutter bridge".
+  flutter_unity_widget_2: ^6000.1.0
 
 dev_dependencies:
   flutter_test:

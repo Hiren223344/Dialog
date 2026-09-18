@@ -23,6 +23,18 @@ namespace StarStudio
 
             var ui = gameObject.AddComponent<StudioUIBootstrapper>();
             ui.Initialize(character.GetComponent<CharacterCustomization>());
+
+#if STAR_STUDIO_FLUTTER_BRIDGE
+            // Only compiled once the flutter_unity_widget_2 Unity package
+            // (which provides UnityMessageManager) has been imported and
+            // this symbol added under Project Settings > Player >
+            // Scripting Define Symbols -- see unity/README.md. Until
+            // then FlutterBridge.cs doesn't exist as far as the compiler
+            // is concerned, so the rest of this scene keeps working
+            // standalone.
+            var bridgeObject = new GameObject("FlutterBridge");
+            bridgeObject.AddComponent<FlutterBridge>();
+#endif
         }
 
         private void BuildGround()
@@ -123,6 +135,12 @@ namespace StarStudio
             var interactable = triggerZone.AddComponent<BuildingInteractable>();
             interactable.buildingId = info.id;
             interactable.displayName = info.displayName;
+
+            var visualState = root.AddComponent<BuildingVisualState>();
+            visualState.buildingId = info.id;
+            visualState.visualRenderer = visual.GetComponent<Renderer>();
+            visualState.interactable = interactable;
+            visualState.baseColor = info.color;
         }
     }
 }

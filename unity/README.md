@@ -45,8 +45,8 @@ buildings -- so there's nothing scene-specific that can be malformed.
   shape at its head.
 - Walk up to a building until a **"Press E to enter ..."** prompt
   appears, then press **E** -- opens a menu with Gigs / Hire Staff /
-  Shop / Leave. The first three just show a status line (they need the
-  Flutter bridge, not built yet); Leave closes the menu.
+  Shop / Leave. Without the Flutter bridge wired up (below), the first
+  three just show a status line; Leave closes the menu.
 
 ## What's here
 
@@ -56,20 +56,50 @@ buildings -- so there's nothing scene-specific that can be malformed.
 | `ThirdPersonController.cs` | Camera-relative movement on the capsule via `CharacterController`. |
 | `StudioCameraRig.cs` | The curated, clamped 3/4-angle follow camera. |
 | `BuildingInteractable.cs` | Per-building trigger zone; fires enter/exit/interact events. |
+| `BuildingVisualState.cs` | Applies a building's real status (locked/buildable/...) to its cube -- dims it and disables its trigger when locked. |
 | `CharacterCustomization.cs` | Placeholder skin/outfit/accessory hooks on the capsule. |
 | `StudioBuildingData.cs` | The 8 buildings' placeholder layout -- mirrors `lib/data/game_registry.dart`'s ids so both sides agree on what a building *is*, even though this data isn't shared code (no Dart/C# interop). |
 | `StudioUIBootstrapper.cs` | Builds the on-screen UI at runtime: interaction prompt, building menu, customization panel. |
+| `FlutterBridge.cs` | The Unity side of the Flutter bridge (see below). Gated behind `STAR_STUDIO_FLUTTER_BRIDGE` so its own missing dependency can't break the rest of the project. |
+
+## Wiring the Flutter bridge
+
+The Dart side is `lib/services/unity_bridge.dart` (message protocol) and
+`lib/widgets/unity_studio_view.dart` (the widget that hosts the Unity
+view), used from `lib/screens/studio_home_screen.dart` behind
+`kUnity3DStudioEnabled` in `lib/config/feature_flags.dart` (**false** by
+default -- flip it once you've actually gotten this running). This
+whole path is unverified: `flutter_unity_widget_2` needs a Unity-built
+native module (an exported Android library / iOS framework) that only
+Unity's Editor can produce, so none of it has been exercised end to
+end.
+
+To wire it up:
+
+1. `flutter pub get` (already added to `pubspec.yaml` -- switch the
+   version line to `^2022.3.0` instead of `^6000.1.0` if your Unity
+   project targets 2019.4-2022.3 rather than Unity 6).
+2. Follow `flutter_unity_widget_2`'s own setup docs to import its Unity
+   package into this project (it provides `UnityMessageManager`,
+   referenced by `FlutterBridge.cs`) and export it as the native module
+   Flutter embeds.
+3. In Unity, add `STAR_STUDIO_FLUTTER_BRIDGE` under **Project Settings >
+   Player > Scripting Define Symbols** -- this compiles `FlutterBridge.cs`
+   in and makes `StudioSceneBootstrapper` attach it, and makes the
+   Gigs/Hire/Shop buttons call it instead of only showing a status line.
+4. The message shapes are documented on each method in `FlutterBridge.cs`
+   and mirrored on each method in `UnityBridge` (Dart) -- keep both
+   sides in sync if you change one.
+
+What it does today: Flutter calls `SyncBuildings`/`SetSkinTone`/
+`SetOutfitColor`/`SetAccessory` on Unity; Unity sends
+`buildingInteracted`/`menuAction` events back. "Hire" and "shop" land on
+`ScaffoldMessenger` placeholders in Flutter, since there's no real
+hiring/shop system in `lib/state/game_state.dart` yet -- only gigs and
+buildings exist there so far.
 
 ## What's intentionally not here yet
 
-- **Flutter embedding.** No `flutter_unity_widget` (or similar) wiring.
-  `BuildingInteractable`'s events currently drive the in-Unity UI and
-  `Debug.Log`; once an embedding package is chosen, a bridge script
-  subscribes to those same events (`BuildingEntered` / `BuildingExited`
-  / `BuildingInteracted`) and forwards them to Flutter too, and the
-  Gigs/Hire/Shop buttons call into the real economy in
-  `lib/state/game_state.dart` instead of showing a placeholder status
-  line.
 - **Real character/building assets.** `CharacterCustomization`'s method
   *signatures* (`SetSkinTone`, `SetOutfitColor`, `SetAccessory`) are
   meant to be the lasting API -- swap their bodies to change materials
